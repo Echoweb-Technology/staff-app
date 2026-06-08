@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "762389379681",
+    "project_id": "jeplusx-bda69",
+    "storage_bucket": "jeplusx-bda69.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:762389379681:android:d128159cb6b746662e4820",
+        "android_client_info": {
+          "package_name": "com.jeplusx"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDUDLmrNOGFrRa2h4-ozKBFNgWfxWHBz6E"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

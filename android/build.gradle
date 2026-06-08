@@ -1,0 +1,38 @@
+buildscript {
+    ext {
+        buildToolsVersion = "34.0.0"
+        minSdkVersion = 23
+        compileSdkVersion = 34
+        targetSdkVersion = 34
+        ndkVersion = "26.1.10909125"
+        kotlinVersion = "1.9.22"
+    }
+    repositories {
+        google()
+        mavenCentral()
+        // Add the Transistor Software repo for background-geolocation
+        maven {
+            url "https://maven.transistorsoft.com/content/repositories/releases/"
+        }
+    }
+    dependencies {
+        classpath("com.android.tools.build:gradle:8.2.2") // Specify exact version
+        classpath("com.facebook.react:react-native-gradle-plugin:0.74.1") // Specify exact version
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
+        classpath("com.google.gms:google-services:4.4.2")
+    }
+}
+
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+        maven { url 'https://www.jitpack.io' }
+        // Add the Transistor Software repo for background-geolocation
+        maven {
+            url "https://maven.transistorsoft.com/content/repositories/releases/"
+        }
+    }
+}
+
+apply plugin: "com.facebook.react.rootproject"

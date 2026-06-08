@@ -1,0 +1,9 @@
+# Enable RewriteEngine
+RewriteEngine On
+
+# If the requested file or directory exists, do nothing
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+
+# Rewrite .php extension requests to the file without extension
+RewriteRule ^([^/.]+)$ $1.php [L]
