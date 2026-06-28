@@ -415,7 +415,7 @@ function user_login($phone,$password)
 		$arr = ["msg" => "User Not Found", "status" => 400];		
 	}
 	echo json_encode($arr);
-}*/
+}
 
 
 

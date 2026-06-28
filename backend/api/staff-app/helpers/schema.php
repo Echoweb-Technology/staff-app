@@ -1,0 +1,61 @@
+<?php
+
+function ensureStaffAttendanceSchema(mysqli $con): void
+{
+    $alterQueries = [
+        "ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS AttendanceLogId BIGINT NULL",
+        "ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS AttendanceDate DATE NULL",
+        "ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS EmployeeId VARCHAR(50) NULL",
+        "ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS InTime DATETIME NULL",
+        "ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS InDeviceId VARCHAR(50) NULL",
+        "ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS OutTime DATETIME NULL",
+        "ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS OutDeviceId VARCHAR(50) NULL",
+        "ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS Duration INT NULL",
+        "ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS LateBy INT NULL",
+        "ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS EarlyBy INT NULL",
+        "ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS IsOnLeave TINYINT NULL",
+        "ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS LeaveType VARCHAR(100) NULL",
+        "ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS LeaveDuration INT NULL",
+        "ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS WeeklyOff TINYINT NULL",
+        "ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS Holiday TINYINT NULL",
+        "ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS LeaveRemarks VARCHAR(255) NULL",
+        "ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS PunchRecords TEXT NULL",
+        "ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS ShiftId INT NULL",
+        "ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS Present TINYINT NULL",
+        "ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS Absent TINYINT NULL",
+        "ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS Status VARCHAR(100) NULL",
+        "ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS StatusCode VARCHAR(10) NULL",
+        "ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS P1Status VARCHAR(10) NULL",
+        "ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS P2Status VARCHAR(10) NULL",
+        "ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS P3Status VARCHAR(10) NULL",
+        "ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS IsonSpecialOff TINYINT NULL",
+        "ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS SpecialOffType VARCHAR(100) NULL",
+        "ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS SpecialOffRemark VARCHAR(255) NULL",
+        "ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS SpecialOffDuration INT NULL",
+        "ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS OverTime INT NULL",
+        "ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS OverTimeE INT NULL",
+        "ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS MissedOutPunch INT NULL",
+        "ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS Remarks VARCHAR(255) NULL",
+        "ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS MissedInPunch INT NULL",
+        "ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS LeaveTypeId INT NULL",
+        "ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS LossOfHours INT NULL",
+        "ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS InLatitude DECIMAL(10,7) NULL",
+        "ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS InLongitude DECIMAL(10,7) NULL",
+        "ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS OutLatitude DECIMAL(10,7) NULL",
+        "ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS OutLongitude DECIMAL(10,7) NULL",
+        "ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS InSource VARCHAR(20) NULL",
+        "ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS OutSource VARCHAR(20) NULL",
+        "ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS InPhoto VARCHAR(255) NULL",
+        "ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS OutPhoto VARCHAR(255) NULL",
+        "ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS UserType VARCHAR(50) NULL",
+        "ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS UserCode VARCHAR(50) NULL",
+        "ALTER TABLE staff_attendance ADD COLUMN IF NOT EXISTS UpdatedAt TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP",
+        "ALTER TABLE staff_attendance ADD INDEX IF NOT EXISTS idx_staff_att_employee_date (EmployeeId, AttendanceDate)",
+        "ALTER TABLE staff_attendance ADD INDEX IF NOT EXISTS idx_staff_att_log_id (AttendanceLogId)",
+        "ALTER TABLE staff_attendance ADD INDEX IF NOT EXISTS idx_staff_att_user_date (UserCode, AttendanceDate)",
+    ];
+
+    foreach ($alterQueries as $query) {
+        mysqli_query($con, $query);
+    }
+}
