@@ -14,6 +14,9 @@ export function pickImageOptions() {
     mediaType: 'photo',
     includeBase64: false,
     saveToPhotos: false,
+    maxWidth: 1024,
+    maxHeight: 1024,
+    quality: 0.7,
   };
 }
 

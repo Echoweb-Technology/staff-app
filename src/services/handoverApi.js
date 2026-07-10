@@ -41,12 +41,27 @@ async function parseJsonResponse(res, fallbackMessage) {
 
 export async function getTransferMeta(params) {
   const headers = await getAuthHeaders();
-  const res = await fetch(`${BASE_URL}/handover-meta.php${buildQuery(params)}`, {
+  const url = `${BASE_URL}/handover-meta.php${buildQuery(params)}`;
+  
+  if (params.fetch === 'drivers') {
+    console.log('\n--- Driver Search URL ---');
+    console.log(url);
+  }
+
+  const res = await fetch(url, {
     method: 'GET',
     headers,
   });
 
-  return parseJsonResponse(res, 'Failed to load handover data');
+  const jsonResponse = await parseJsonResponse(res, 'Failed to load handover data');
+  
+  if (params.fetch === 'drivers') {
+    console.log('--- Driver Search Response ---');
+    console.log(JSON.stringify(jsonResponse, null, 2));
+    console.log('--------------------------\n');
+  }
+
+  return jsonResponse;
 }
 
 export async function submitHandover(formData) {

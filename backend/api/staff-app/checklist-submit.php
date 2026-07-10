@@ -33,13 +33,6 @@ if ($empId === '') {
     checklistJsonResponse(400, 'Employee ID not found in token');
 }
 
-// Get supervisor name
-$nameStmt = $con->prepare("SELECT name FROM staff WHERE emp_id = ? LIMIT 1");
-$nameStmt->bind_param('s', $empId);
-$nameStmt->execute();
-$nameRow = $nameStmt->get_result()->fetch_assoc();
-$supervisorName = $nameRow['name'] ?? $user['user_name'] ?? '';
-
 // Validate required fields
 $vehicleReg = trim($_POST['vehicle_reg'] ?? '');
 $vehicleId = trim($_POST['vehicle_id'] ?? '');
@@ -50,8 +43,54 @@ if ($vehicleReg === '') {
     checklistJsonResponse(400, 'Vehicle registration is required');
 }
 
+// Find assigned supervisor for this vehicle in the current month
+$range = checklistGetCurrentMonthRange();
+$supAssignStmt = $con->prepare("
+    SELECT supervisor 
+    FROM monthly_booking 
+    WHERE vehicle = ? AND date_from >= ? AND date_from <= ? 
+    LIMIT 1
+");
+$supAssignStmt->bind_param('sss', $vehicleReg, $range['start'], $range['end']);
+$supAssignStmt->execute();
+$supAssignRes = $supAssignStmt->get_result()->fetch_assoc();
+$assignedSupEmpId = $supAssignRes['supervisor'] ?? '';
+
+// If a supervisor is assigned, use them. Otherwise fallback to the logged-in user ($empId)
+$finalSupervisorEmpId = ($assignedSupEmpId !== '') ? $assignedSupEmpId : $empId;
+
+// Get supervisor name and report manager
+$nameStmt = $con->prepare("
+    SELECT name, report_manager 
+    FROM staff 
+    WHERE emp_id = ? 
+    LIMIT 1
+");
+$nameStmt->bind_param('s', $finalSupervisorEmpId);
+$nameStmt->execute();
+$nameRow = $nameStmt->get_result()->fetch_assoc();
+$supervisorName = $nameRow['name'] ?? (($finalSupervisorEmpId === $empId) ? ($user['user_name'] ?? '') : '');
+$reportManagerCode = $nameRow['report_manager'] ?? '';
+
+// Get manager details
+$managerEmpId = '';
+$managerName = '';
+if ($reportManagerCode !== '') {
+    $mgrStmt = $con->prepare("
+        SELECT emp_id, name 
+        FROM staff 
+        WHERE emp_code = ? 
+        LIMIT 1
+    ");
+    $mgrStmt->bind_param('s', $reportManagerCode);
+    $mgrStmt->execute();
+    $mgrRes = $mgrStmt->get_result()->fetch_assoc();
+    $managerEmpId = $mgrRes['emp_id'] ?? '';
+    $managerName = $mgrRes['name'] ?? '';
+}
+
 // Check if already inspected this month
-if (checklistIsVehicleInspectedThisMonth($con, $empId, $vehicleReg)) {
+if (checklistIsVehicleInspectedThisMonth($con, $finalSupervisorEmpId, $vehicleReg)) {
     checklistJsonResponse(400, 'Vehicle already inspected this month. Next checklist can only be done next month.');
 }
 
@@ -142,6 +181,7 @@ $hasItemImages = $colCheck && $colCheck->num_rows > 0;
 
 $columns = [
     'supervisor_emp_id', 'supervisor_name',
+    'manager_emp_id', 'manager_name',
     'vehicle_id', 'vehicle_reg', 'driver_id', 'driver_name',
     'inspection_date', 'inspection_image',
     'document_folder', 'car_body_inner', 'car_body_outer', 'driver_behavior',
@@ -151,14 +191,15 @@ $columns = [
     'remarks',
 ];
 $placeholders = [
-    '?','?','?','?','?','?','?','?',
+    '?','?','?','?','?','?','?','?','?','?',
     '?','?','?','?','?','?','?','?',
     '?','?','?','?','?','?','?','?',
     '?','?','?',
 ];
-$bindTypes = 'sssssssssssssssssssssssssss';
+$bindTypes = 'sssssssssssssssssssssssssssss';
 $bindValues = [
-    $empId, $supervisorName,
+    $finalSupervisorEmpId, $supervisorName,
+    $managerEmpId, $managerName,
     $vehicleId, $vehicleReg, $driverId, $driverName,
     $today, $inspectionImage,
     $values['document_folder'], $values['car_body_inner'], $values['car_body_outer'], $values['driver_behavior'],

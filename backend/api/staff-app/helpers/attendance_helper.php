@@ -178,7 +178,7 @@ function staffAttSavePhoto(?array $file, string $prefix): ?string
         return null;
     }
 
-    $uploadDir = $_SERVER['DOCUMENT_ROOT'] . '/dist/staff-app/attendance/';
+    $uploadDir = __DIR__ . '/../attendance/';
     if (!is_dir($uploadDir)) {
         mkdir($uploadDir, 0777, true);
     }

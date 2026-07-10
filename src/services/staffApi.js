@@ -196,3 +196,25 @@ export async function punchAttendance(formData) {
 
   return json;
 }
+
+/**
+ * Fetch permissions for the current user.
+ */
+export async function getPermissions() {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${BASE_URL}/permissions.php`, {
+    method: 'GET',
+    headers,
+  });
+  
+  if (res.status === 401) {
+    throw new Error('UNAUTHORIZED');
+  }
+
+  const json = await res.json().catch(() => ({}));
+  if (res.status !== 200 || (json.status && json.status !== 200)) {
+    throw new Error(json.msg || 'Failed to fetch permissions');
+  }
+
+  return json;
+}

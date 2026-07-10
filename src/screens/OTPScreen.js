@@ -19,8 +19,35 @@ export default function OTPScreen({route, navigation}) {
   const {mobileNumber} = route.params || {};
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
   const [error, setError] = useState('');
+  const [resendMessage, setResendMessage] = useState('');
   const inputRef = useRef(null);
+
+  const handleResendOTP = async () => {
+    if (resending) return;
+    setResending(true);
+    setResendMessage('');
+    setError('');
+    
+    try {
+      const response = await fetch('https://vtms.co.in/api/supervisor/request-otp.php', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({mobile_number: mobileNumber}),
+      });
+      const data = await response.json();
+      if (data.status === 'success') {
+        setResendMessage('OTP has been resent successfully.');
+      } else {
+        setError(data.message || 'Failed to resend OTP');
+      }
+    } catch (err) {
+      setError(err.message || 'Network error. Please try again.');
+    } finally {
+      setResending(false);
+    }
+  };
 
   const handleVerifyOTP = async () => {
     if (otp.trim().length < 4) {
@@ -61,6 +88,12 @@ export default function OTPScreen({route, navigation}) {
     }
   };
 
+  React.useEffect(() => {
+    if (otp.length === 4 && !loading && !error) {
+      handleVerifyOTP();
+    }
+  }, [otp]);
+
   return (
     <KeyboardAvoidingView
       style={styles.root}
@@ -89,7 +122,7 @@ export default function OTPScreen({route, navigation}) {
           activeOpacity={1}
           style={styles.codeRow}
           onPress={() => inputRef.current?.focus()}>
-          {[0, 1, 2, 3, 4, 5].map(index => (
+          {[0, 1, 2, 3].map(index => (
             <View
               key={index}
               style={[
@@ -105,13 +138,15 @@ export default function OTPScreen({route, navigation}) {
           ref={inputRef}
           value={otp}
           onChangeText={text => {
-            setOtp(text.replace(/[^0-9]/g, '').slice(0, 6));
+            setOtp(text.replace(/[^0-9]/g, '').slice(0, 4));
             setError('');
           }}
           keyboardType="number-pad"
-          maxLength={6}
+          maxLength={4}
           autoFocus
           style={styles.hiddenInput}
+          textContentType="oneTimeCode"
+          autoComplete="sms-otp"
         />
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
@@ -127,8 +162,14 @@ export default function OTPScreen({route, navigation}) {
         </TouchableOpacity>
         <Text style={styles.resend}>
           Didn't receive the code?{' '}
-          <Text style={styles.resendLink}>Resend OTP</Text>
+          <Text 
+            style={[styles.resendLink, resending && styles.disabled]} 
+            onPress={handleResendOTP}
+            suppressHighlighting={true}>
+            {resending ? 'Resending...' : 'Resend OTP'}
+          </Text>
         </Text>
+        {resendMessage ? <Text style={styles.successMessage}>{resendMessage}</Text> : null}
       </View>
     </KeyboardAvoidingView>
   );
@@ -172,7 +213,7 @@ const styles = StyleSheet.create({
     marginTop: 35,
   },
   codeBox: {
-    width: 47,
+    width: 60,
     height: 58,
     borderRadius: 15,
     borderWidth: 1,
@@ -194,6 +235,13 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.regular,
     fontSize: 11,
     marginTop: 12,
+  },
+  successMessage: {
+    color: colors.success,
+    fontFamily: fontFamily.regular,
+    fontSize: 11,
+    marginTop: 8,
+    textAlign: 'center',
   },
   button: {
     height: 56,

@@ -64,7 +64,7 @@ $employeeId = staffAttResolveEmployeeId(
     (int) $user['id']
 );
 
-$photoField = $action === 'in' ? 'photo' : 'out_photo';
+$photoField = isset($_FILES['out_photo']) ? 'out_photo' : 'photo';
 $photoPath = staffAttSavePhoto($_FILES[$photoField] ?? null, 'att_' . $action);
 
 if ($action === 'in') {
@@ -79,7 +79,7 @@ if (!$result['ok']) {
 
 $responseData = $result['data'];
 if ($photoPath) {
-    $responseData['photo_url'] = 'https://vtms.co.in/dist/' . $photoPath;
+    $responseData['photo_url'] = 'https://vtms.co.in/api/staff-app/' . $photoPath;
 }
 
 staffAttJsonResponse($result['status'], $result['msg'], $responseData);

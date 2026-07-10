@@ -27,6 +27,7 @@ const SearchablePicker = ({
   const [results, setResults] = useState(options);
   const [searching, setSearching] = useState(false);
   const [selectedLabel, setSelectedLabel] = useState('');
+  const [labelCache, setLabelCache] = useState({});
   const debounceRef = useRef(null);
   const searchInputRef = useRef(null);
 
@@ -41,8 +42,15 @@ const SearchablePicker = ({
   useEffect(() => {
     if (!value) {
       setSelectedLabel('');
+    } else {
+      // Try to cache the label if it's in options or results
+      const found = options.find(o => String(o.value) === String(value)) ||
+                    results.find(o => String(o.value) === String(value));
+      if (found && found.label) {
+        setLabelCache(prev => ({ ...prev, [value]: found.label }));
+      }
     }
-  }, [value]);
+  }, [value, options, results]);
 
   const handleSearch = useCallback(
     text => {
@@ -98,6 +106,7 @@ const SearchablePicker = ({
   const handleSelect = useCallback(
     item => {
       setSelectedLabel(item.label);
+      setLabelCache(prev => ({ ...prev, [item.value]: item.label }));
       handleClose();
       onSelect(item.value, item);
     },
@@ -107,6 +116,7 @@ const SearchablePicker = ({
   const displayLabel = value
     ? options.find(o => String(o.value) === String(value))?.label ||
       results.find(o => String(o.value) === String(value))?.label ||
+      labelCache[value] ||
       selectedLabel ||
       renderLabel?.(value) ||
       placeholder

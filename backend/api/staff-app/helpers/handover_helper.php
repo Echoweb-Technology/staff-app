@@ -1,6 +1,6 @@
 <?php
 
-const STAFF_TRANSFER_PUBLIC_BASE_URL = 'https://vtms.co.in/dist/';
+const STAFF_TRANSFER_PUBLIC_BASE_URL = 'https://vtms.co.in/api/staff-app/';
 const STAFF_TRANSFER_UPLOAD_ROOT = 'staff-app/transfers';
 
 function staffTransferJsonResponse(int $status, string $msg, $data = null): void
@@ -88,7 +88,7 @@ function staffTransferFetchVehiclesForHandover(
         $stmt = $con->prepare(
             "SELECT vehicle_id, registration, charger_no, driver_id, driver1_id
              FROM vehicle
-             WHERE {$condition} AND fleet_category <> 'No More In Fleet'
+             WHERE {$condition}  AND (vehicle.owner_by = 'VTR' or vehicle.owner_by = 'VTPL' or vehicle.owner_by='VV1986') and (vehicle.operated_by = 'VTPL' or vehicle.operated_by = 'VV1986') AND fleet_category <> 'No More In Fleet'
                AND registration LIKE CONCAT('%', ?, '%')
              ORDER BY registration ASC
              LIMIT 50"
@@ -100,7 +100,7 @@ function staffTransferFetchVehiclesForHandover(
         $result = $con->query(
             "SELECT vehicle_id, registration, charger_no, driver_id, driver1_id
              FROM vehicle
-             WHERE {$condition} AND fleet_category <> 'No More In Fleet'
+             WHERE {$condition}  AND (vehicle.owner_by = 'VTR' or vehicle.owner_by = 'VTPL' or vehicle.owner_by='VV1986') and (vehicle.operated_by = 'VTPL' or vehicle.operated_by = 'VV1986') AND fleet_category <> 'No More In Fleet'
              ORDER BY registration ASC
              LIMIT 50"
         );
@@ -181,7 +181,7 @@ function staffTransferFetchAvailableDrivers(
         FROM driver
         WHERE driver_status <> 'Inoperative'
           AND (assinged_vehicle = '' OR assinged_vehicle IS NULL)
-          AND (assinged_vehicle_id = '' OR assinged_vehicle_id IS NULL)" . $searchSql . "
+          AND (assinged_vehicle_id = '' OR assinged_vehicle_id IS NULL OR assinged_vehicle_id =0 )" . $searchSql . "
         ORDER BY driver_name ASC
         LIMIT 20";
     $stmt = $con->prepare($permSql);
@@ -504,7 +504,7 @@ function staffTransferFetchVehicleContext(
 
 function staffTransferEnsureUploadDirectory(string $workflow, string $subFolder): string
 {
-    $baseDirectory = rtrim($_SERVER['DOCUMENT_ROOT'], '/\\') . '/dist/' . STAFF_TRANSFER_UPLOAD_ROOT;
+    $baseDirectory = __DIR__ . '/../transfers';
     $directory = $baseDirectory . '/' . $workflow . '/' . trim($subFolder, '/');
     if (!is_dir($directory)) {
         mkdir($directory, 0777, true);
@@ -619,7 +619,7 @@ function staffTransferSaveUpload(
         throw new RuntimeException("Unable to save image for {$subFolder}");
     }
 
-    return STAFF_TRANSFER_UPLOAD_ROOT . '/' . $workflow . '/' . $subFolder . '/' . $fileName;
+    return 'transfers/' . $workflow . '/' . $subFolder . '/' . $fileName;
 }
 
 function staffTransferRequireRecentDatetime(string $value, int $allowedDays = 3): string

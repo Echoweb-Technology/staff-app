@@ -10,7 +10,7 @@ const Tab = createBottomTabNavigator();
 
 const icons = {
   Home: 'view-dashboard-outline',
-  Activity: 'clipboard-text-clock-outline',
+  Notifications: 'bell-outline',
   Profile: 'account-circle-outline',
 };
 
@@ -53,7 +53,7 @@ export default function MainTabs() {
         tabBarIcon: props => <TabIcon routeName={route.name} {...props} />,
       })}>
       <Tab.Screen name="Home" component={DashboardScreen} />
-      <Tab.Screen name="Activity" component={ActivityScreen} />
+      <Tab.Screen name="Notifications" component={ActivityScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );

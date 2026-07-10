@@ -14,6 +14,7 @@ import ScreenHeader from '../components/ScreenHeader';
 import {
   clearStoredStaffSession,
   getStoredStaffUser,
+  getPermissions,
 } from '../services/staffApi';
 import {colors, fontFamily, shadows} from '../theme';
 
@@ -26,13 +27,18 @@ const menu = [
 
 export default function ProfileScreen({navigation}) {
   const [user, setUser] = useState(null);
+  const [permissions, setPermissions] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const loadUser = useCallback(async () => {
     setLoading(true);
     try {
-      const storedUser = await getStoredStaffUser();
+      const [storedUser, permsRes] = await Promise.all([
+        getStoredStaffUser(),
+        getPermissions().catch(() => ({ permissions: {} })),
+      ]);
       setUser(storedUser);
+      setPermissions(permsRes?.permissions ?? {});
     } finally {
       setLoading(false);
     }
@@ -86,6 +92,23 @@ export default function ProfileScreen({navigation}) {
             <Text style={styles.activeText}>Active employee</Text>
           </View>
         </View>
+
+        {permissions && (
+          <View style={styles.permsCard}>
+            <Text style={styles.permsTitle}>App Permissions</Text>
+            <View style={styles.permsGrid}>
+              <View style={[styles.permBadge, permissions.checklist && styles.permBadgeActive]}>
+                <Text style={[styles.permText, permissions.checklist && styles.permTextActive]}>Vehicle Checklist</Text>
+              </View>
+              <View style={[styles.permBadge, permissions.handover && styles.permBadgeActive]}>
+                <Text style={[styles.permText, permissions.handover && styles.permTextActive]}>Handover / Takeover</Text>
+              </View>
+              <View style={[styles.permBadge, permissions.attendance && styles.permBadgeActive]}>
+                <Text style={[styles.permText, permissions.attendance && styles.permTextActive]}>Attendance</Text>
+              </View>
+            </View>
+          </View>
+        )}
 
         <View style={styles.menuCard}>
           {menu.map(([icon, label], index) => (
@@ -187,6 +210,40 @@ const styles = StyleSheet.create({
     color: colors.success,
     fontFamily: fontFamily.semibold,
     fontSize: 10,
+  },
+  permsCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 20,
+    padding: 18,
+    marginTop: 20,
+  },
+  permsTitle: {
+    color: colors.text,
+    fontFamily: fontFamily.semibold,
+    fontSize: 14,
+    marginBottom: 12,
+  },
+  permsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  permBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: '#F0F4F5',
+  },
+  permBadgeActive: {
+    backgroundColor: colors.successSoft,
+  },
+  permText: {
+    color: '#8A999F',
+    fontFamily: fontFamily.medium,
+    fontSize: 11,
+  },
+  permTextActive: {
+    color: colors.success,
   },
   menuCard: {
     backgroundColor: colors.surface,

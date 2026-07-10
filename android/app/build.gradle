@@ -87,7 +87,7 @@ android {
     namespace "com.jeplusx"
     
     defaultConfig {
-        applicationId "com.jeplusx"
+        applicationId "com.jeplusx.staff"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 10

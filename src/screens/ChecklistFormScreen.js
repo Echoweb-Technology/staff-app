@@ -91,6 +91,15 @@ export default function ChecklistFormScreen({navigation, route}) {
     }
   }, []);
 
+  const PHOTO_KEYS = useMemo(() => [
+    { key: 'outer_front', label: 'Outer Front' },
+    { key: 'outer_back', label: 'Outer Back' },
+    { key: 'outer_left', label: 'Outer Left' },
+    { key: 'outer_right', label: 'Outer Right' },
+    { key: 'inner_front', label: 'Inner Front' },
+    { key: 'inner_back', label: 'Inner Back' },
+  ], []);
+
   const completed = useMemo(
     () => ITEMS.filter(i => statuses[i.key] !== '').length,
     [statuses],
@@ -109,8 +118,13 @@ export default function ChecklistFormScreen({navigation, route}) {
     [statuses, remarks],
   );
 
+  const missingPhotos = useMemo(
+    () => PHOTO_KEYS.filter(p => !itemImages[p.key]).map(p => p.label),
+    [PHOTO_KEYS, itemImages]
+  );
+
   const canSubmit =
-    completed === total && missingRemarks.length === 0;
+    completed === total && missingRemarks.length === 0 && missingPhotos.length === 0;
 
   const handleSubmit = useCallback(async () => {
     setSubmitting(true);
@@ -231,7 +245,6 @@ export default function ChecklistFormScreen({navigation, route}) {
             const val = statuses[item.key];
             const isBehavior = item.type === 'behavior';
             const needsRemark = !isBehavior && val === 'no';
-            const hasPhoto = !!itemImages[item.key];
             const isLast = idx === ITEMS.length - 1;
 
             return (
@@ -241,21 +254,6 @@ export default function ChecklistFormScreen({navigation, route}) {
                 {/* Label row */}
                 <View style={styles.itemLabelRow}>
                   <Text style={styles.itemLabel}>{item.label}</Text>
-                  <TouchableOpacity
-                    style={[styles.photoBtn, hasPhoto && styles.photoBtnActive]}
-                    onPress={() => captureItemPhoto(item.key)}>
-                    <MaterialCommunityIcons
-                      name={hasPhoto ? 'camera' : 'camera-plus-outline'}
-                      size={18}
-                      color={hasPhoto ? colors.primary : '#B0C3C9'}
-                    />
-                    {hasPhoto && (
-                      <Image
-                        source={{uri: itemImages[item.key]}}
-                        style={styles.photoThumb}
-                      />
-                    )}
-                  </TouchableOpacity>
                 </View>
 
                 {/* Toggle buttons */}
@@ -349,17 +347,46 @@ export default function ChecklistFormScreen({navigation, route}) {
           })}
         </View>
 
+        {/* Vehicle Photos */}
+        <View style={styles.listCard}>
+          <Text style={styles.sectionTitle}>Vehicle Photos (Required)</Text>
+          <View style={styles.photoGrid}>
+            {PHOTO_KEYS.map(photo => {
+              const uri = itemImages[photo.key];
+              return (
+                <View key={photo.key} style={styles.photoBox}>
+                  <TouchableOpacity
+                    style={[styles.photoBoxBtn, uri && styles.photoBoxBtnActive]}
+                    onPress={() => captureItemPhoto(photo.key)}>
+                    {uri ? (
+                      <Image source={{uri}} style={styles.photoBoxImg} />
+                    ) : (
+                      <MaterialCommunityIcons name="camera-plus-outline" size={24} color="#B0C3C9" />
+                    )}
+                  </TouchableOpacity>
+                  <Text style={styles.photoBoxLabel}>{photo.label}</Text>
+                </View>
+              );
+            })}
+          </View>
+        </View>
+
         {/* Validation hint */}
-        {missingRemarks.length > 0 && (
+        {(missingRemarks.length > 0 || missingPhotos.length > 0) && (
           <View style={styles.warnCard}>
             <MaterialCommunityIcons
               name="alert-circle-outline"
               size={20}
               color={colors.danger}
             />
-            <Text style={styles.warnText}>
-              Add remarks for: {missingRemarks.join(', ')}
-            </Text>
+            <View style={{flex: 1}}>
+              {missingRemarks.length > 0 && (
+                <Text style={styles.warnText}>Add remarks for: {missingRemarks.join(', ')}</Text>
+              )}
+              {missingPhotos.length > 0 && (
+                <Text style={styles.warnText}>Add photos for: {missingPhotos.join(', ')}</Text>
+              )}
+            </View>
           </View>
         )}
 
@@ -490,26 +517,47 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: 8,
   },
-  photoBtn: {
-    width: 40,
-    height: 40,
+  sectionTitle: {
+    color: colors.text,
+    fontFamily: fontFamily.bold,
+    fontSize: 16,
+    marginBottom: 12,
+  },
+  photoGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    justifyContent: 'space-between',
+  },
+  photoBox: {
+    width: '30%',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  photoBoxBtn: {
+    width: '100%',
+    aspectRatio: 1,
     borderRadius: 12,
     backgroundColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
     borderWidth: 1,
     borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+    overflow: 'hidden',
   },
-  photoBtnActive: {
+  photoBoxBtnActive: {
     borderColor: colors.primary,
-    backgroundColor: colors.primarySoft,
   },
-  photoThumb: {
-    position: 'absolute',
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    opacity: 0.5,
+  photoBoxImg: {
+    width: '100%',
+    height: '100%',
+  },
+  photoBoxLabel: {
+    color: colors.text,
+    fontFamily: fontFamily.medium,
+    fontSize: 11,
+    textAlign: 'center',
   },
 
   /* Yes/No */

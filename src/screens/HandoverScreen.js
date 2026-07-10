@@ -11,7 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import DatePicker from 'react-native-date-picker';
 import {Picker} from '@react-native-picker/picker';
 import {useFocusEffect} from '@react-navigation/native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -289,6 +289,30 @@ export default function HandoverScreen({navigation}) {
       setLoadingMeta(false);
     }
   }, [handoverForm.assignmentType, handoverForm.driverId, handoverForm.vehicleId, mode, takeoverForm.driverId, takeoverForm.vehicleId]);
+
+  const handleManualRefresh = useCallback(async () => {
+    setLoadingMeta(true);
+    try {
+      const currentSupervisor = handoverForm.supervisor || currentUser?.name || handoverMeta.actor?.name || '';
+      
+      const [handoverResponse, takeoverResponse] = await Promise.all([
+        getTransferMeta({mode: 'handover', assignment_type: 'primary'}),
+        getTransferMeta({mode: 'takeover'}),
+      ]);
+
+      setHandoverMeta(handoverResponse.data);
+      setTakeoverMeta(takeoverResponse.data);
+      
+      setHandoverForm(createInitialHandoverForm(currentSupervisor || handoverResponse.data.actor?.name || ''));
+      setTakeoverForm(createInitialTakeoverForm(currentSupervisor || takeoverResponse.data.actor?.name || ''));
+    } catch (error) {
+      if (error.message !== 'UNAUTHORIZED') {
+        Alert.alert('Unable to refresh', error.message);
+      }
+    } finally {
+      setLoadingMeta(false);
+    }
+  }, [currentUser?.name, handoverForm.supervisor, handoverMeta.actor?.name]);
 
   useFocusEffect(
     useCallback(() => {
@@ -891,6 +915,7 @@ export default function HandoverScreen({navigation}) {
             subtitle: item.source_type,
           }))}
           placeholder="Select driver"
+          onSearch={searchHandoverDrivers}
           onSelect={value => {
             const [driverId, sourceType] = value.split('|');
             setHandoverForm(prev => ({
@@ -1152,7 +1177,7 @@ export default function HandoverScreen({navigation}) {
         subtitle="Replicated from web workflow"
         navigation={navigation}
         rightIcon="refresh"
-        onRightPress={refreshCurrentMode}
+        onRightPress={handleManualRefresh}
       />
       <ScrollView
         contentContainerStyle={styles.content}
@@ -1177,43 +1202,40 @@ export default function HandoverScreen({navigation}) {
           ))}
         </View>
 
-        {loadingMeta ? (
+        <View style={{ display: loadingMeta ? 'flex' : 'none', marginBottom: 16 }}>
           <View style={styles.loadingCard}>
             <ActivityIndicator color={colors.primary} />
             <Text style={styles.loadingText}>Loading transfer workflow...</Text>
           </View>
-        ) : mode === 'handover' ? (
-          renderHandoverForm()
-        ) : (
-          renderTakeoverForm()
-        )}
+        </View>
+        
+        <View style={{ display: loadingMeta ? 'none' : 'flex' }}>
+          {mode === 'handover' ? renderHandoverForm() : renderTakeoverForm()}
+        </View>
       </ScrollView>
 
-      {datePickerTarget ? (
-        <DateTimePicker
-          value={
-            datePickerTarget === 'handover'
-              ? handoverForm.handoverDt
-              : takeoverForm.takeoverDt
+      <DatePicker
+        modal
+        open={!!datePickerTarget}
+        date={
+          datePickerTarget === 'handover'
+            ? handoverForm.handoverDt
+            : takeoverForm.takeoverDt
+        }
+        mode="datetime"
+        maximumDate={new Date()}
+        onConfirm={(selectedDate) => {
+          if (datePickerTarget === 'handover') {
+            setHandoverForm(prev => ({...prev, handoverDt: selectedDate}));
+          } else if (datePickerTarget === 'takeover') {
+            setTakeoverForm(prev => ({...prev, takeoverDt: selectedDate}));
           }
-          mode="datetime"
-          maximumDate={new Date()}
-          onChange={(event, selectedDate) => {
-            if (event.type === 'dismissed') {
-              setDatePickerTarget(null);
-              return;
-            }
-
-            const value = selectedDate || new Date();
-            if (datePickerTarget === 'handover') {
-              setHandoverForm(prev => ({...prev, handoverDt: value}));
-            } else {
-              setTakeoverForm(prev => ({...prev, takeoverDt: value}));
-            }
-            setDatePickerTarget(null);
-          }}
-        />
-      ) : null}
+          setDatePickerTarget(null);
+        }}
+        onCancel={() => {
+          setDatePickerTarget(null);
+        }}
+      />
     </View>
   );
 }

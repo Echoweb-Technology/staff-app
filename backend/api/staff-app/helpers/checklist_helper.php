@@ -71,92 +71,188 @@ function checklistGetCurrentMonthRange(): array
     ];
 }
 
-function checklistFetchSupervisorVehicles(mysqli $con, string $empId, string $search = ''): array
+function checklistIsAdminUser(mysqli $con, string $empId): bool
 {
-    $range = checklistGetCurrentMonthRange();
+    $stmt = $con->prepare(
+        "SELECT user_type, designation FROM staff WHERE emp_id = ? LIMIT 1"
+    );
+    $stmt->bind_param('s', $empId);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    if (!$row) {
+        return false;
+    }
+    
+    $type = strtolower(trim($row['user_type'] ?? ''));
+    $desig = strtolower(trim($row['designation'] ?? ''));
+    
+    $adminRoles = ['manager', 'Power Admin', 'Admin'];
+    return in_array($type, $adminRoles, true) || in_array($desig, $adminRoles, true);
+}
 
-    $sql = "SELECT DISTINCT mb.vehicle
-         FROM monthly_booking mb
-         WHERE mb.supervisor = ?
-           AND mb.date_from >= ?
-           AND mb.date_from <= ?";
-
-    $params = [$empId, $range['start'], $range['end']];
-    $types = 'sss';
-
-    if ($search !== '') {
-        $sql .= " AND mb.vehicle LIKE ?";
-        $params[] = '%' . $search . '%';
-        $types .= 's';
+function checklistFetchSupervisorVehicles(mysqli $con, string $empId, string $search = '', ?array $range = null): array
+{
+    if ($range === null) {
+        $range = checklistGetCurrentMonthRange();
     }
 
-    $sql .= " ORDER BY mb.vehicle ASC LIMIT 30";
+    $isAdmin = checklistIsAdminUser($con, $empId);
 
-    $stmt = $con->prepare($sql);
-    $stmt->bind_param($types, ...$params);
-    $stmt->execute();
-    $result = $stmt->get_result();
+    if ($isAdmin) {
+        $sql = "
+            SELECT DISTINCT mb.vehicle
+            FROM monthly_booking mb
+            WHERE mb.date_from >= ?
+              AND mb.date_from <= ?
+        ";
+
+        $params = [$range['start'], $range['end']];
+        $types = 'ss';
+
+        if ($search !== '') {
+            $sql .= " AND mb.vehicle LIKE ?";
+            $params[] = '%' . $search . '%';
+            $types .= 's';
+        }
+
+        $sql .= " ORDER BY mb.vehicle ASC";
+
+        $stmt = $con->prepare($sql);
+        $stmt->bind_param($types, ...$params);
+        $stmt->execute();
+        $result = $stmt->get_result();
+    } else {
+        // Get supervisor emp_code
+        $stmt = $con->prepare("
+            SELECT emp_code
+            FROM staff
+            WHERE emp_id = ?
+            LIMIT 1
+        ");
+        $stmt->bind_param('s', $empId);
+        $stmt->execute();
+        $mgrRow = $stmt->get_result()->fetch_assoc();
+
+        // Current employee + all reporting employees
+        $empIds = [$empId];
+
+        if (!empty($mgrRow['emp_code'])) {
+            $stmt = $con->prepare("
+                SELECT emp_id
+                FROM staff
+                WHERE report_manager = ?
+            ");
+            $stmt->bind_param('s', $mgrRow['emp_code']);
+            $stmt->execute();
+            $res = $stmt->get_result();
+
+            while ($row = $res->fetch_assoc()) {
+                $empIds[] = $row['emp_id'];
+            }
+        }
+
+        // Create IN (?, ?, ?)
+        $placeholders = implode(',', array_fill(0, count($empIds), '?'));
+
+        $sql = "
+            SELECT DISTINCT mb.vehicle
+            FROM monthly_booking mb
+            WHERE mb.supervisor IN ($placeholders)
+              AND mb.date_from >= ?
+              AND mb.date_from <= ?
+        ";
+
+        $params = array_merge($empIds, [
+            $range['start'],
+            $range['end']
+        ]);
+
+        $types = str_repeat('s', count($empIds)) . 'ss';
+
+        if ($search !== '') {
+            $sql .= " AND mb.vehicle LIKE ?";
+            $params[] = '%' . $search . '%';
+            $types .= 's';
+        }
+
+        $sql .= " ORDER BY mb.vehicle ASC";
+
+        $stmt = $con->prepare($sql);
+        $stmt->bind_param($types, ...$params);
+        $stmt->execute();
+        $result = $stmt->get_result();
+    }
 
     $vehicles = [];
+
     while ($row = $result->fetch_assoc()) {
         $reg = trim($row['vehicle']);
+
         if ($reg === '') {
             continue;
         }
 
-        // Look up vehicle_id and driver info from vehicle table
-        $vStmt = $con->prepare(
-            "SELECT vehicle_id, registration, driver, driver1
-             FROM vehicle
-             WHERE registration = ?
-             LIMIT 1"
-        );
+        // Fetch vehicle details
+        $vStmt = $con->prepare("
+            SELECT vehicle_id, registration, driver, driver1
+            FROM vehicle
+            WHERE registration = ?
+            LIMIT 1
+        ");
         $vStmt->bind_param('s', $reg);
         $vStmt->execute();
+
         $vRow = $vStmt->get_result()->fetch_assoc();
 
         $vehicles[] = [
-            'vehicle_id' => $vRow['vehicle_id'] ?? '',
-            'registration' => $reg,
-            'driver_name' => $vRow['driver'] ?? '',
-            'driver1_name' => $vRow['driver1'] ?? '',
-            'already_inspected' => checklistIsVehicleInspectedThisMonth($con, $empId, $reg),
+            'vehicle_id'        => $vRow['vehicle_id'] ?? '',
+            'registration'      => $reg,
+            'driver_name'       => $vRow['driver'] ?? '',
+            'driver1_name'      => $vRow['driver1'] ?? '',
+            'already_inspected' => checklistIsVehicleInspectedThisMonth(
+                $con,
+                $empId,
+                $reg,
+                $range
+            ),
         ];
     }
 
     return $vehicles;
 }
 
-function checklistIsVehicleInspectedThisMonth(mysqli $con, string $empId, string $reg): bool
+function checklistIsVehicleInspectedThisMonth(mysqli $con, string $empId, string $reg, ?array $range = null): bool
 {
-    $range = checklistGetCurrentMonthRange();
+    if ($range === null) {
+        $range = checklistGetCurrentMonthRange();
+    }
     $stmt = $con->prepare(
         "SELECT COUNT(*) AS cnt
          FROM vehicle_checklist
-         WHERE supervisor_emp_id = ?
-           AND vehicle_reg = ?
+         WHERE vehicle_reg = ?
            AND inspection_date >= ?
            AND inspection_date <= ?
          LIMIT 1"
     );
-    $stmt->bind_param('ssss', $empId, $reg, $range['start'], $range['end']);
+    $stmt->bind_param('sss', $reg, $range['start'], $range['end']);
     $stmt->execute();
     $row = $stmt->get_result()->fetch_assoc();
     return ($row['cnt'] ?? 0) > 0;
 }
 
-function checklistFetchMonthInspection(mysqli $con, string $empId, string $reg): ?array
+function checklistFetchMonthInspection(mysqli $con, string $empId, string $reg, ?array $range = null): ?array
 {
-    $range = checklistGetCurrentMonthRange();
+    if ($range === null) {
+        $range = checklistGetCurrentMonthRange();
+    }
     $stmt = $con->prepare(
         "SELECT * FROM vehicle_checklist
-         WHERE supervisor_emp_id = ?
-           AND vehicle_reg = ?
+         WHERE vehicle_reg = ?
            AND inspection_date >= ?
            AND inspection_date <= ?
          ORDER BY id DESC LIMIT 1"
     );
-    $stmt->bind_param('ssss', $empId, $reg, $range['start'], $range['end']);
+    $stmt->bind_param('sss', $reg, $range['start'], $range['end']);
     $stmt->execute();
     $row = $stmt->get_result()->fetch_assoc();
     return $row ?: null;
@@ -197,8 +293,7 @@ function checklistSaveUploadedImage(): string
         return '';
     }
 
-    $baseDir = rtrim($_SERVER['DOCUMENT_ROOT'], '/\\') . '/dist/';
-    $uploadDir = $baseDir . CHECKLIST_UPLOAD_RELATIVE_PATH . '/';
+    $uploadDir = __DIR__ . '/../checklist/';
     if (!is_dir($uploadDir)) {
         mkdir($uploadDir, 0777, true);
     }
@@ -254,12 +349,10 @@ function checklistSaveItemImages(): string
 {
     $images = [];
 
-    // All 18 item keys
+    // 6 standalone vehicle photos
     $itemKeys = [
-        'document_folder', 'car_body_inner', 'car_body_outer', 'driver_behavior',
-        'driver_uniform', 'first_aid_box', 'fire_extinguisher', 'torch',
-        'umbrella', 'seat_cover', 'gps', 'extra_tyre', 'vehicle_tool_kit',
-        'dnd_tag', 'head_rest', 'napkin_box', 'car_perfume', 'car_charger',
+        'outer_front', 'outer_back', 'outer_left', 'outer_right',
+        'inner_front', 'inner_back',
     ];
 
     foreach ($itemKeys as $key) {
@@ -278,8 +371,7 @@ function checklistSaveItemImages(): string
             continue;
         }
 
-        $baseDir = rtrim($_SERVER['DOCUMENT_ROOT'], '/\\') . '/dist/';
-        $uploadDir = $baseDir . CHECKLIST_UPLOAD_RELATIVE_PATH . '/items/';
+        $uploadDir = __DIR__ . '/../checklist/items/';
         if (!is_dir($uploadDir)) {
             mkdir($uploadDir, 0777, true);
         }
@@ -330,6 +422,10 @@ function checklistSaveItemImages(): string
 
 function checklistCheckIfManager(mysqli $con, string $empId): bool
 {
+    if (checklistIsAdminUser($con, $empId)) {
+        return true;
+    }
+
     // Check if this emp_id has higher role (MD, Manager) in staff table
     $stmt = $con->prepare(
         "SELECT designation FROM staff WHERE emp_id = ? LIMIT 1"
@@ -344,9 +440,11 @@ function checklistCheckIfManager(mysqli $con, string $empId): bool
     return in_array($desig, ['md', 'manager', 'admin'], true);
 }
 
-function checklistFetchSummaryForManager(mysqli $con, string $empId): array
+function checklistFetchSummaryForManager(mysqli $con, string $empId, ?array $range = null): array
 {
-    $range = checklistGetCurrentMonthRange();
+    if ($range === null) {
+        $range = checklistGetCurrentMonthRange();
+    }
 
     // Get distinct supervisors under this manager (from employee hierarchy)
     // We assume the manager's emp_id maps to a reporting structure

@@ -10,7 +10,7 @@ import {
 import {useFocusEffect} from '@react-navigation/native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
-import {getAttendanceStatus, getStoredStaffUser} from '../services/staffApi';
+import {getAttendanceStatus, getStoredStaffUser, getPermissions} from '../services/staffApi';
 import {colors, fontFamily, shadows} from '../theme';
 
 const baseModules = [
@@ -145,6 +145,8 @@ export default function DashboardScreen({navigation}) {
   const insets = useSafeAreaInsets();
   const [user, setUser] = useState(null);
   const [attendanceStatus, setAttendanceStatus] = useState(null);
+  const [permissions, setPermissions] = useState(null);
+  const [workingStatus, setWorkingStatus] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const now = new Date();
@@ -159,28 +161,38 @@ export default function DashboardScreen({navigation}) {
     () => buildAttendanceCard(attendanceStatus),
     [attendanceStatus],
   );
-  const modules = useMemo(
-    () =>
-      baseModules.map(module =>
-        module.route === 'Attendance'
-          ? {...module, status: attendanceCard.moduleStatus}
-          : module,
-      ),
-    [attendanceCard.moduleStatus],
-  );
+  const modules = useMemo(() => {
+    let list = baseModules;
+    if (permissions) {
+      list = list.filter(m => {
+        if (m.route === 'Checklist' && !permissions.checklist) return false;
+        if (m.route === 'Handover' && !permissions.handover) return false;
+        if (m.route === 'Attendance' && !permissions.attendance) return false;
+        return true;
+      });
+    }
+    return list.map(module =>
+      module.route === 'Attendance'
+        ? {...module, status: attendanceCard.moduleStatus}
+        : module,
+    );
+  }, [attendanceCard.moduleStatus, permissions]);
 
   const loadDashboardData = useCallback(async () => {
     setLoading(true);
     setLoadError('');
 
     try {
-      const [storedUser, response] = await Promise.all([
+      const [storedUser, response, permsRes] = await Promise.all([
         getStoredStaffUser(),
         getAttendanceStatus(),
+        getPermissions().catch(() => ({ permissions: {} })),
       ]);
 
       setUser(storedUser);
       setAttendanceStatus(response.data ?? null);
+      setPermissions(permsRes?.permissions ?? {});
+      setWorkingStatus(permsRes?.working_status ?? null);
     } catch (error) {
       if (error.message !== 'UNAUTHORIZED') {
         setLoadError(error.message);
@@ -195,6 +207,18 @@ export default function DashboardScreen({navigation}) {
       loadDashboardData();
     }, [loadDashboardData]),
   );
+
+  if (workingStatus === 'INACTIVE') {
+    return (
+      <View style={[styles.root, { justifyContent: 'center', alignItems: 'center', padding: 20 }]}>
+        <MaterialCommunityIcons name="account-cancel" size={64} color={colors.danger} />
+        <Text style={{ fontFamily: fontFamily.semibold, fontSize: 24, color: colors.text, marginTop: 20 }}>Account Inactive</Text>
+        <Text style={{ fontFamily: fontFamily.regular, fontSize: 16, color: colors.textMuted, textAlign: 'center', marginTop: 10 }}>
+          Oops you are inactive now. Please contact your administrator.
+        </Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.root}>
@@ -216,7 +240,8 @@ export default function DashboardScreen({navigation}) {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.heroCard}>
+        {(!permissions || permissions.attendance) && (
+          <View style={styles.heroCard}>
           <View style={styles.heroTop}>
             <View style={styles.heroBadge}>
               <Text style={styles.heroBadgeText}>{attendanceCard.badge}</Text>
@@ -293,11 +318,13 @@ export default function DashboardScreen({navigation}) {
             </Text>
           </View>
         </View>
+        )}
 
-        <View style={styles.sectionRow}>
-          <Text style={styles.sectionTitle}>Staff operations</Text>
-          <Text style={styles.sectionHint}>3 modules</Text>
-        </View>
+        {modules.length > 0 && (
+          <View style={styles.sectionRow}>
+            <Text style={styles.sectionTitle}>Staff operations</Text>
+          </View>
+        )}
 
         {modules.map(module => (
           <TouchableOpacity
@@ -326,22 +353,6 @@ export default function DashboardScreen({navigation}) {
             />
           </TouchableOpacity>
         ))}
-
-        <View style={styles.noticeCard}>
-          <View style={styles.noticeIcon}>
-            <MaterialCommunityIcons
-              name="bullhorn-outline"
-              size={22}
-              color={colors.accent}
-            />
-          </View>
-          <View style={styles.noticeTextWrap}>
-            <Text style={styles.noticeTitle}>Operations notice</Text>
-            <Text style={styles.noticeText}>
-              Complete the vehicle checklist before accepting a handover.
-            </Text>
-          </View>
-        </View>
       </ScrollView>
     </View>
   );

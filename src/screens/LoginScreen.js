@@ -53,7 +53,7 @@ export default function LoginScreen({navigation}) {
       <View style={styles.brandArea}>
         <View style={styles.logo}>
           <MaterialCommunityIcons
-            name="account-hard-hat-outline"
+            name="account-tie"
             size={35}
             color={colors.white}
           />
@@ -68,7 +68,7 @@ export default function LoginScreen({navigation}) {
           Sign in with your registered mobile number.
         </Text>
         <Text style={styles.label}>Mobile number</Text>
-        <View style={[styles.inputWrap, error && styles.inputError]}>
+        <View style={[styles.inputWrap, error ? styles.inputError : null]}>
           <View style={styles.countryCode}>
             <Text style={styles.countryText}>+91</Text>
           </View>
@@ -88,7 +88,7 @@ export default function LoginScreen({navigation}) {
         </View>
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
         <TouchableOpacity
-          style={[styles.button, loading && styles.disabled]}
+          style={[styles.button, loading ? styles.disabled : null]}
           onPress={handleSendOTP}
           disabled={loading}>
           {loading ? (

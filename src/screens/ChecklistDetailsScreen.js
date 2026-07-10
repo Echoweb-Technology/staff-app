@@ -1,4 +1,4 @@
-import React, {useCallback, useEffect, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -34,6 +34,17 @@ const ITEMS = [
   {key: 'car_charger', label: 'Car Charger', type: 'yesno'},
 ];
 
+const IMAGE_BASE_URL = 'https://vtms.co.in/api/';
+
+const PHOTO_KEYS = [
+  { key: 'outer_front', label: 'Outer Front' },
+  { key: 'outer_back', label: 'Outer Back' },
+  { key: 'outer_left', label: 'Outer Left' },
+  { key: 'outer_right', label: 'Outer Right' },
+  { key: 'inner_front', label: 'Inner Front' },
+  { key: 'inner_back', label: 'Inner Back' },
+];
+
 export default function ChecklistDetailsScreen({navigation, route}) {
   const {vehicle} = route.params;
   const [loading, setLoading] = useState(true);
@@ -58,6 +69,17 @@ export default function ChecklistDetailsScreen({navigation, route}) {
       setLoading(false);
     }
   }, [vehicle.registration]);
+
+  const itemImages = useMemo(() => {
+    if (!details?.item_images) return {};
+    try {
+      return typeof details.item_images === 'string'
+        ? JSON.parse(details.item_images)
+        : details.item_images;
+    } catch (e) {
+      return {};
+    }
+  }, [details]);
 
   useEffect(() => {
     loadDetails();
@@ -173,6 +195,29 @@ export default function ChecklistDetailsScreen({navigation, route}) {
           })}
         </View>
 
+        {/* Vehicle Photos */}
+        <View style={[styles.listCard, { marginTop: 16 }]}>
+          <Text style={styles.sectionTitle}>Vehicle Photos</Text>
+          <View style={styles.photoGrid}>
+            {PHOTO_KEYS.map(photo => {
+              const relPath = itemImages[photo.key];
+              const uri = relPath ? (relPath.startsWith('http') ? relPath : IMAGE_BASE_URL + relPath) : null;
+              return (
+                <View key={photo.key} style={styles.photoBox}>
+                  <View style={styles.photoBoxBtn}>
+                    {uri ? (
+                      <Image source={{uri}} style={styles.photoBoxImg} />
+                    ) : (
+                      <MaterialCommunityIcons name="image-off-outline" size={24} color="#B0C3C9" />
+                    )}
+                  </View>
+                  <Text style={styles.photoBoxLabel}>{photo.label}</Text>
+                </View>
+              );
+            })}
+          </View>
+        </View>
+
       </ScrollView>
     </View>
   );
@@ -285,5 +330,38 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     padding: 8,
     borderRadius: 8,
+  },
+  photoGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    justifyContent: 'space-between',
+  },
+  photoBox: {
+    width: '30%',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  photoBoxBtn: {
+    width: '100%',
+    aspectRatio: 1,
+    borderRadius: 12,
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+    overflow: 'hidden',
+  },
+  photoBoxImg: {
+    width: '100%',
+    height: '100%',
+  },
+  photoBoxLabel: {
+    color: colors.text,
+    fontFamily: fontFamily.medium,
+    fontSize: 11,
+    textAlign: 'center',
   },
 });
